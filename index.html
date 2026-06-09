@@ -210,9 +210,7 @@
 <body>
 <div id="container">
 
-  <video id="vid" preload="auto"
-    src="https://raw.githubusercontent.com/strictlysimplify/video-player/main/video.mp4">
-  </video>
+  <video id="vid" preload="auto" src="video.mp4"></video>
 
   <div id="bigIcon">
     <svg id="bigSvg" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
@@ -241,15 +239,15 @@
       </button>
 
       <!-- Skip back -->
-      <button class="skip-btn" id="backBtn" aria-label="Back 10 seconds" style="width:38px;height:38px;">
-        <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L3 8v6h6l-2.18-2.18A6.93 6.93 0 0 1 12.5 10c3.13 0 5.8 2.05 6.72 4.87l1.91-.64A9 9 0 0 0 12.5 8z"/></svg>
-        <span class="skip-label" style="font-size:9px;bottom:4px;right:5px;">10</span>
+      <button class="skip-btn" id="backBtn" aria-label="Back 10 seconds" style="width:42px;height:38px;">
+        <svg viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
+        <span class="skip-label" style="font-size:8px;bottom:3px;left:50%;transform:translateX(-50%);">10</span>
       </button>
 
       <!-- Skip forward -->
-      <button class="skip-btn" id="fwdBtn" aria-label="Forward 10 seconds" style="width:38px;height:38px;">
-        <svg viewBox="0 0 24 24"><path d="M18.9 10.6A9 9 0 0 0 11.5 8c-2.49 0-4.74 1.01-6.37 2.63L3.5 9.13V15h5.87l-2.18-2.18A6.93 6.93 0 0 1 11.5 10a7 7 0 0 1 6.72 5.13l1.91-.63A9 9 0 0 0 18.9 10.6z"/><path d="M11.5 8v.01"/></svg>
-        <span class="skip-label" style="font-size:9px;bottom:4px;left:5px;">10</span>
+      <button class="skip-btn" id="fwdBtn" aria-label="Forward 10 seconds" style="width:42px;height:38px;">
+        <svg viewBox="0 0 24 24"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
+        <span class="skip-label" style="font-size:8px;bottom:3px;left:50%;transform:translateX(-50%);">10</span>
       </button>
 
       <div class="spacer"></div>
