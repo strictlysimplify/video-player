@@ -34,7 +34,19 @@
       display: block;
     }
 
-    /* ── Gradient scrim ── */
+    /* ── Top scrim ── */
+    #topScrim {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 120px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
+      opacity: 0;
+      transition: opacity 0.35s cubic-bezier(0.4,0,0.2,1);
+      pointer-events: none;
+    }
+    #container.show-cursor #topScrim { opacity: 1; }
+
+    /* ── Bottom scrim ── */
     #scrim {
       position: absolute;
       bottom: 0; left: 0; right: 0;
@@ -45,6 +57,33 @@
       pointer-events: none;
     }
     #container.show-cursor #scrim { opacity: 1; }
+
+    /* ── Video title ── */
+    #titleBar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 18px 24px;
+      opacity: 0;
+      transform: translateY(-4px);
+      transition: opacity 0.35s cubic-bezier(0.4,0,0.2,1),
+                  transform 0.35s cubic-bezier(0.4,0,0.2,1);
+      pointer-events: none;
+      z-index: 10;
+    }
+    #titleBar.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    #titleBar span {
+      font-size: 15px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.92);
+      letter-spacing: 0.01em;
+      text-shadow: 0 1px 8px rgba(0,0,0,0.5);
+    }
 
     /* ── Controls panel ── */
     #controls {
@@ -59,6 +98,7 @@
       transition: opacity 0.35s cubic-bezier(0.4,0,0.2,1),
                   transform 0.35s cubic-bezier(0.4,0,0.2,1);
       pointer-events: none;
+      z-index: 10;
     }
     #controls.visible {
       opacity: 1;
@@ -155,7 +195,6 @@
     button:active { transform: scale(0.92); }
     button svg { width: 20px; height: 20px; fill: #fff; display: block; }
 
-    /* Skip buttons */
     .skip-btn { flex-direction: column; gap: 0; padding: 6px 8px; }
     .skip-btn svg { width: 18px; height: 18px; }
     .skip-num {
@@ -249,29 +288,35 @@
     }
     #bigIcon svg { width: 34px; height: 34px; fill: #fff; }
 
-    /* ── Hint toast ── */
+    /* ── Skip accumulator toast ── */
     #hint {
       position: absolute;
-      top: 20px; left: 50%;
-      transform: translateX(-50%) translateY(-4px);
-      background: rgba(20,20,20,0.75);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      color: rgba(255,255,255,0.9);
-      font-size: 12px;
-      font-weight: 500;
-      letter-spacing: 0.04em;
-      padding: 5px 14px;
-      border-radius: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      left: 0; right: 0;
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
+    }
+    #hintInner {
+      background: rgba(20,20,20,0.72);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: #fff;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      padding: 10px 22px;
+      border-radius: 14px;
       border: 1px solid rgba(255,255,255,0.1);
       opacity: 0;
-      transition: opacity 0.2s ease, transform 0.2s ease;
-      pointer-events: none;
+      transform: scale(0.88);
+      transition: opacity 0.15s ease, transform 0.15s cubic-bezier(0.34,1.56,0.64,1);
       white-space: nowrap;
     }
-    #hint.show {
+    #hintInner.show {
       opacity: 1;
-      transform: translateX(-50%) translateY(0);
+      transform: scale(1);
     }
 
     /* ── Error ── */
@@ -291,18 +336,18 @@
 <body>
 <div id="container">
 
-  <video id="vid" preload="auto"
-    src="https://github.com/strictlysimplify/video-player/raw/refs/heads/main/video.mp4"
-    crossorigin="anonymous">
-  </video>
+  <video id="vid" preload="auto" src="video.mp4"></video>
 
+  <div id="topScrim"></div>
   <div id="scrim"></div>
+
+  <div id="titleBar"><span id="titleText">video</span></div>
 
   <div id="bigIcon">
     <svg id="bigSvg" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
   </div>
 
-  <div id="hint"></div>
+  <div id="hint"><div id="hintInner"></div></div>
   <div id="errMsg">Unable to load video.<br>Check the file path or network.</div>
 
   <div id="controls">
@@ -358,28 +403,35 @@
 </div>
 
 <script>
-const vid       = document.getElementById('vid');
-const container = document.getElementById('container');
-const controls  = document.getElementById('controls');
-const seekBar   = document.getElementById('seekBar');
-const seekFill  = document.getElementById('seekFill');
-const seekThumb = document.getElementById('seekThumb');
-const timeDisp  = document.getElementById('timeDisp');
-const playBtn   = document.getElementById('playBtn');
-const playIco   = document.getElementById('playIco');
-const backBtn   = document.getElementById('backBtn');
-const fwdBtn    = document.getElementById('fwdBtn');
-const muteBtn   = document.getElementById('muteBtn');
-const volSlider = document.getElementById('volSlider');
-const volFill   = document.getElementById('volFill');
-const volThumb  = document.getElementById('volThumb');
-const volIco    = document.getElementById('volIco');
-const fsBtn     = document.getElementById('fsBtn');
-const fsIco     = document.getElementById('fsIco');
-const bigIcon   = document.getElementById('bigIcon');
-const bigSvg    = document.getElementById('bigSvg');
-const hint      = document.getElementById('hint');
-const errMsg    = document.getElementById('errMsg');
+const vid        = document.getElementById('vid');
+const container  = document.getElementById('container');
+const controls   = document.getElementById('controls');
+const titleBar   = document.getElementById('titleBar');
+const titleText  = document.getElementById('titleText');
+const seekBar    = document.getElementById('seekBar');
+const seekFill   = document.getElementById('seekFill');
+const seekThumb  = document.getElementById('seekThumb');
+const timeDisp   = document.getElementById('timeDisp');
+const playBtn    = document.getElementById('playBtn');
+const playIco    = document.getElementById('playIco');
+const backBtn    = document.getElementById('backBtn');
+const fwdBtn     = document.getElementById('fwdBtn');
+const muteBtn    = document.getElementById('muteBtn');
+const volSlider  = document.getElementById('volSlider');
+const volFill    = document.getElementById('volFill');
+const volThumb   = document.getElementById('volThumb');
+const volIco     = document.getElementById('volIco');
+const fsBtn      = document.getElementById('fsBtn');
+const fsIco      = document.getElementById('fsIco');
+const bigIcon    = document.getElementById('bigIcon');
+const bigSvg     = document.getElementById('bigSvg');
+const hintInner  = document.getElementById('hintInner');
+const errMsg     = document.getElementById('errMsg');
+
+/* ── Derive video name from src ── */
+const srcName = vid.src.split('/').pop().split('?')[0];
+const videoName = srcName.replace(/\.[^.]+$/, '') || 'video';
+titleText.textContent = videoName;
 
 const D = {
   play:   'M8 5v14l11-7z',
@@ -396,10 +448,11 @@ function fmt(s) {
   return `${m}:${sec.toString().padStart(2,'0')}`;
 }
 
-/* ── Cursor / controls ── */
+/* ── Cursor / controls / title ── */
 let hideTimer;
 function showUI() {
   controls.classList.add('visible');
+  titleBar.classList.add('visible');
   container.classList.add('show-cursor');
   clearTimeout(hideTimer);
   hideTimer = setTimeout(() => {
@@ -408,6 +461,7 @@ function showUI() {
 }
 function hideUI() {
   controls.classList.remove('visible');
+  titleBar.classList.remove('visible');
   container.classList.remove('show-cursor');
 }
 container.addEventListener('mousemove', showUI);
@@ -455,19 +509,33 @@ vid.addEventListener('loadedmetadata', () => {
 vid.addEventListener('timeupdate', updateSeek);
 seekBar.addEventListener('input', () => { vid.currentTime = parseFloat(seekBar.value); });
 
-/* ── Skip ── */
+/* ── Skip with accumulator ── */
+let skipAccum = 0;
+let skipResetTimer = null;
+let hintTimer = null;
+
 function skip(s) {
   vid.currentTime = Math.max(0, Math.min(vid.duration || 0, vid.currentTime + s));
-  showHint(s > 0 ? `+${s}s` : `${s}s`);
+
+  // Accumulate in the same direction; reset if direction flips
+  if ((s > 0 && skipAccum < 0) || (s < 0 && skipAccum > 0)) skipAccum = 0;
+  skipAccum += s;
+
+  const label = skipAccum > 0 ? `+${skipAccum}s` : `${skipAccum}s`;
+  showHint(label);
+
+  clearTimeout(skipResetTimer);
+  skipResetTimer = setTimeout(() => { skipAccum = 0; }, 1200);
 }
+
 backBtn.addEventListener('click', () => skip(-10));
 fwdBtn.addEventListener('click',  () => skip(+10));
 
-/* ── Volume — smooth fill driven by JS ── */
+/* ── Volume ── */
 function updateVolVisual(v) {
   const pct = (v * 100).toFixed(2) + '%';
-  volFill.style.width  = pct;
-  volThumb.style.left  = pct;
+  volFill.style.width = pct;
+  volThumb.style.left = pct;
 }
 volSlider.addEventListener('input', () => {
   const v = parseFloat(volSlider.value);
@@ -498,21 +566,23 @@ document.addEventListener('fullscreenchange', () => {
 });
 
 /* ── Hint toast ── */
-let hintTimer;
 function showHint(msg) {
-  hint.textContent = msg;
-  hint.classList.add('show');
+  hintInner.textContent = msg;
+  hintInner.classList.add('show');
   clearTimeout(hintTimer);
-  hintTimer = setTimeout(() => hint.classList.remove('show'), 950);
+  hintTimer = setTimeout(() => hintInner.classList.remove('show'), 950);
 }
 
 /* ── Keyboard ── */
 document.addEventListener('keydown', e => {
   if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
   switch(e.key) {
-    case ' ': case 'k': case 'K': e.preventDefault(); togglePlay(); break;
-    case 'ArrowRight': e.preventDefault(); skip(+10); break;
-    case 'ArrowLeft':  e.preventDefault(); skip(-10); break;
+    case ' ': case 'k': case 'K':
+      e.preventDefault(); togglePlay(); break;
+    case 'ArrowRight':
+      e.preventDefault(); skip(+10); break;
+    case 'ArrowLeft':
+      e.preventDefault(); skip(-10); break;
     case 'ArrowUp':
       e.preventDefault();
       vid.volume = Math.min(1, parseFloat((vid.volume + 0.1).toFixed(2)));
