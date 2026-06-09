@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Player</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: #000;
+      overflow: hidden;
+      font-family: 'Inter', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+
+    #container {
+      position: relative;
+      width: 100%; height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      background: #000;
+      cursor: none;
+    }
+    #container.show-cursor { cursor: default; }
+
+    video {
+      width: 100%; height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    #topScrim {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 120px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
+      opacity: 0;
+      transition: opacity 0.35s cubic-bezier(0.4,0,0.2,1);
+      pointer-events: none;
+    }
+    #container.show-cursor #topScrim { opacity: 1; }
+
+    #scrim {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 180px;
+      background: linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.3) 60%, transparent 100%);
+      opacity: 0;
+      transition: opacity 0.35s cubic-bezier(0.4,0,0.2,1);
+      pointer-events: none;
+    }
+    #container.show-cursor #scrim { opacity: 1; }
+
+    #titleBar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 18px 24px;
+      opacity: 0;
+      transform: translateY(-4px);
+      transition: opacity 0.35s cubic-bezier(0.4,0,0.2,1), transform 0.35s cubic-bezier(0.4,0,0.2,1);
+      pointer-events: none;
+      z-index: 10;
+    }
+    #titleBar.visible { opacity: 1; transform: translateY(0); }
+    #titleBar span {
+      font-size: 15px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.92);
+      letter-spacing: 0.01em;
+      text-shadow: 0 1px 8px rgba(0,0,0,0.5);
+    }
+
+    #controls {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 0 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.35s cubic-bezier(0.4,0,0.2,1), transform 0.35s cubic-bezier(0.4,0,0.2,1);
+      pointer-events: none;
+      z-index: 10;
+    }
+    #controls.visible { opacity: 1; transform: translateY(0); pointer-events: all; }
+
+    .seek-row { display: flex; align-items: center; gap: 12px; }
+
+    .seek-wrap {
+      flex: 1;
+      position: relative;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+    .seek-track {
+      position: absolute;
+      left: 0; right: 0;
+      height: 3px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 3px;
+      overflow: hidden;
+      transition: height 0.18s ease;
+      pointer-events: none;
+    }
+    .seek-fill {
+      height: 100%;
+      background: #fff;
+      border-radius: 3px;
+      width: 0%;
+      pointer-events: none;
+      transition: background 0.2s;
+    }
+    .seek-thumb {
+      position: absolute;
+      width: 13px; height: 13px;
+      background: #fff;
+      border-radius: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1);
+      pointer-events: none;
+      left: 0%;
+    }
+    .seek-input {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      opacity: 0;
+      height: 100%;
+      cursor: pointer;
+      margin: 0;
+      -webkit-appearance: none;
+    }
+    .seek-wrap:hover .seek-track { height: 5px; }
+    .seek-wrap:hover .seek-fill  { background: #ff5f5f; }
+    .seek-wrap:hover .seek-thumb { transform: translate(-50%, -50%) scale(1); }
+
+    .time {
+      font-size: 12.5px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.75);
+      white-space: nowrap;
+      letter-spacing: 0.03em;
+      min-width: 88px;
+      text-align: right;
+    }
+
+    .btn-row { display: flex; align-items: center; gap: 2px; }
+
+    button {
+      background: none;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, transform 0.1s;
+      flex-shrink: 0;
+      position: relative;
+    }
+    button:hover { background: rgba(255,255,255,0.12); }
+    button:active { transform: scale(0.92); }
+    button svg { width: 20px; height: 20px; fill: #fff; display: block; }
+
+    .skip-btn { flex-direction: column; gap: 0; padding: 6px 8px; }
+    .skip-btn svg { width: 18px; height: 18px; }
+    .skip-num {
+      font-size: 9px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.9);
+      letter-spacing: 0.04em;
+      line-height: 1;
+      margin-top: -1px;
+    }
+
+    .spacer { flex: 1; }
+
+    .vol-group { display: flex; align-items: center; gap: 6px; }
+
+    .vol-track-wrap {
+      position: relative;
+      width: 80px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+    .vol-track {
+      position: absolute;
+      left: 0; right: 0;
+      height: 3px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 3px;
+      overflow: hidden;
+      transition: height 0.18s ease;
+      pointer-events: none;
+    }
+    .vol-fill {
+      height: 100%;
+      background: #fff;
+      border-radius: 3px;
+      width: 100%;
+      pointer-events: none;
+      transition: width 0.05s linear, background 0.2s;
+    }
+    .vol-thumb {
+      position: absolute;
+      width: 11px; height: 11px;
+      background: #fff;
+      border-radius: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1);
+      pointer-events: none;
+      left: 100%;
+    }
+    .vol-input {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      opacity: 0;
+      height: 100%;
+      cursor: pointer;
+      margin: 0;
+      -webkit-appearance: none;
+    }
+    .vol-track-wrap:hover .vol-track { height: 5px; }
+    .vol-track-wrap:hover .vol-fill  { background: #fff; }
+    .vol-track-wrap:hover .vol-thumb { transform: translate(-50%, -50%) scale(1); }
+
+    #bigIcon {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%) scale(0.6);
+      background: rgba(0,0,0,0.45);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      border-radius: 50%;
+      width: 72px; height: 72px;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: transform 0.12s cubic-bezier(0.34,1.56,0.64,1), opacity 0.12s ease;
+    }
+    #bigIcon.flash { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    #bigIcon.fade {
+      transform: translate(-50%, -50%) scale(1.1);
+      opacity: 0;
+      transition: transform 0.35s ease, opacity 0.35s ease;
+    }
+    #bigIcon svg { width: 34px; height: 34px; fill: #fff; }
+
+    #hint {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      left: 0; right: 0;
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
+    }
+    #hintInner {
+      background: rgba(20,20,20,0.72);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: #fff;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      padding: 10px 22px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.1);
+      opacity: 0;
+      transform: scale(0.88);
+      transition: opacity 0.15s ease, transform 0.15s cubic-bezier(0.34,1.56,0.64,1);
+      white-space: nowrap;
+    }
+    #hintInner.show { opacity: 1; transform: scale(1); }
+
+    #errMsg {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      color: rgba(255,255,255,0.45);
+      font-size: 14px;
+      font-weight: 400;
+      text-align: center;
+      display: none;
+      line-height: 1.7;
+    }
+
+    #ctxMenu {
+      position: fixed;
+      z-index: 999;
+      background: rgba(18,18,18,0.96);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      padding: 8px;
+      min-width: 240px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+      display: none;
+      opacity: 0;
+      transform: scale(0.94) translateY(-4px);
+      transform-origin: top left;
+      transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    #ctxMenu.open { display: block; }
+    #ctxMenu.visible { opacity: 1; transform: scale(1) translateY(0); }
+
+    .ctx-section-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      padding: 8px 10px 4px;
+    }
+
+    .ctx-divider {
+      height: 1px;
+      background: rgba(255,255,255,0.08);
+      margin: 6px 0;
+    }
+
+    .ctx-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 10px;
+      border-radius: 8px;
+      transition: background 0.12s;
+      cursor: default;
+    }
+    .ctx-row:hover { background: rgba(255,255,255,0.07); }
+
+    .ctx-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.88);
+    }
+    .ctx-sub {
+      font-size: 11px;
+      color: rgba(255,255,255,0.4);
+      margin-top: 1px;
+    }
+
+    .ctx-toggle {
+      width: 36px; height: 20px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 10px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .ctx-toggle.on { background: #ff5f5f; }
+    .ctx-toggle::after {
+      content: '';
+      position: absolute;
+      top: 2px; left: 2px;
+      width: 16px; height: 16px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .ctx-toggle.on::after { transform: translateX(16px); }
+
+    .speed-btns {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      padding: 4px 10px 8px;
+    }
+    .speed-btn {
+      font-size: 12px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.6);
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: background 0.12s, color 0.12s, border-color 0.12s;
+    }
+    .speed-btn:hover { background: rgba(255,255,255,0.13); color: #fff; }
+    .speed-btn.active { background: rgba(255,95,95,0.2); color: #ff5f5f; border-color: rgba(255,95,95,0.4); }
+
+    .ctx-action {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.78);
+      background: none;
+      border: none;
+      cursor: pointer;
+      transition: background 0.12s, color 0.12s;
+      text-align: left;
+    }
+    .ctx-action:hover { background: rgba(255,255,255,0.07); color: #fff; }
+    .ctx-action:active { transform: none; }
+    .ctx-action svg { width: 16px; height: 16px; fill: rgba(255,255,255,0.5); flex-shrink: 0; }
+    .ctx-action:hover svg { fill: rgba(255,255,255,0.85); }
+    .ctx-action.danger { color: rgba(255,95,95,0.85); }
+    .ctx-action.danger svg { fill: rgba(255,95,95,0.6); }
+    .ctx-action.danger:hover { background: rgba(255,95,95,0.1); color: #ff5f5f; }
+  </style>
+</head>
+<body>
+<div id="container">
+
+  <video id="vid" preload="auto" src="video.mp4"></video>
+
+  <div id="topScrim"></div>
+  <div id="scrim"></div>
+
+  <div id="titleBar"><span id="titleText">video</span></div>
+
+  <div id="bigIcon">
+    <svg id="bigSvg" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+  </div>
+
+  <div id="hint"><div id="hintInner"></div></div>
+  <div id="errMsg">Unable to load video.<br>Check the file path or network.</div>
+
+  <div id="controls">
+    <div class="seek-row">
+      <div class="seek-wrap">
+        <div class="seek-track"><div class="seek-fill" id="seekFill"></div></div>
+        <div class="seek-thumb" id="seekThumb"></div>
+        <input type="range" class="seek-input" id="seekBar" min="0" step="0.01" value="0"/>
+      </div>
+      <div class="time" id="timeDisp">0:00 / 0:00</div>
+    </div>
+    <div class="btn-row">
+      <button id="playBtn" aria-label="Play/Pause">
+        <svg id="playIco" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <button class="skip-btn" id="backBtn" aria-label="Back 10s">
+        <svg viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
+        <span class="skip-num">10</span>
+      </button>
+      <button class="skip-btn" id="fwdBtn" aria-label="Forward 10s">
+        <svg viewBox="0 0 24 24"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
+        <span class="skip-num">10</span>
+      </button>
+      <div class="spacer"></div>
+      <div class="vol-group">
+        <button id="muteBtn" aria-label="Mute">
+          <svg id="volIco" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+        </button>
+        <div class="vol-track-wrap">
+          <div class="vol-track"><div class="vol-fill" id="volFill"></div></div>
+          <div class="vol-thumb" id="volThumb"></div>
+          <input type="range" class="vol-input" id="volSlider" min="0" max="1" step="0.001" value="1" aria-label="Volume"/>
+        </div>
+      </div>
+      <button id="fsBtn" aria-label="Fullscreen">
+        <svg id="fsIco" viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="ctxMenu">
+    <div class="ctx-section-label">Playback Speed</div>
+    <div class="speed-btns" id="speedBtns"></div>
+
+    <div class="ctx-divider"></div>
+    <div class="ctx-section-label">Options</div>
+
+    <div class="ctx-row" id="loopRow">
+      <div>
+        <div class="ctx-label">Loop</div>
+        <div class="ctx-sub">Repeat when finished</div>
+      </div>
+      <div class="ctx-toggle" id="loopToggle"></div>
+    </div>
+
+    <div class="ctx-row" id="autoHideRow">
+      <div>
+        <div class="ctx-label">Auto-hide controls</div>
+        <div class="ctx-sub">Hide HUD while playing</div>
+      </div>
+      <div class="ctx-toggle on" id="autoHideToggle"></div>
+    </div>
+
+    <div class="ctx-row" id="pipRow">
+      <div>
+        <div class="ctx-label">Picture-in-picture</div>
+        <div class="ctx-sub">Float in corner</div>
+      </div>
+      <div class="ctx-toggle" id="pipToggle"></div>
+    </div>
+
+    <div class="ctx-divider"></div>
+
+    <button class="ctx-action" id="restartBtn">
+      <svg viewBox="0 0 24 24"><path d="M12 5V2L7 7l5 5V9c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+      Restart
+    </button>
+
+    <button class="ctx-action" id="copyTimeBtn">
+      <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+      Copy timestamp
+    </button>
+
+    <button class="ctx-action danger" id="fsExitBtn">
+      <svg viewBox="0 0 24 24"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>
+      <span id="fsExitLabel">Enter fullscreen</span>
+    </button>
+  </div>
+
+</div>
+<script>
+const vid          = document.getElementById('vid');
+const container    = document.getElementById('container');
+const controls     = document.getElementById('controls');
+const titleBar     = document.getElementById('titleBar');
+const titleText    = document.getElementById('titleText');
+const seekBar      = document.getElementById('seekBar');
+const seekFill     = document.getElementById('seekFill');
+const seekThumb    = document.getElementById('seekThumb');
+const timeDisp     = document.getElementById('timeDisp');
+const playBtn      = document.getElementById('playBtn');
+const playIco      = document.getElementById('playIco');
+const backBtn      = document.getElementById('backBtn');
+const fwdBtn       = document.getElementById('fwdBtn');
+const muteBtn      = document.getElementById('muteBtn');
+const volSlider    = document.getElementById('volSlider');
+const volFill      = document.getElementById('volFill');
+const volThumb     = document.getElementById('volThumb');
+const volIco       = document.getElementById('volIco');
+const fsBtn        = document.getElementById('fsBtn');
+const fsIco        = document.getElementById('fsIco');
+const bigIcon      = document.getElementById('bigIcon');
+const bigSvg       = document.getElementById('bigSvg');
+const hintInner    = document.getElementById('hintInner');
+const errMsg       = document.getElementById('errMsg');
+const ctxMenu      = document.getElementById('ctxMenu');
+const speedBtns    = document.getElementById('speedBtns');
+const loopToggle   = document.getElementById('loopToggle');
+const autoHideToggle = document.getElementById('autoHideToggle');
+const pipToggle    = document.getElementById('pipToggle');
+const restartBtn   = document.getElementById('restartBtn');
+const copyTimeBtn  = document.getElementById('copyTimeBtn');
+const fsExitBtn    = document.getElementById('fsExitBtn');
+const fsExitLabel  = document.getElementById('fsExitLabel');
+
+const srcName = vid.src.split('/').pop().split('?')[0];
+titleText.textContent = srcName.replace(/\.[^.]+$/, '') || 'video';
+
+const D = {
+  play:   'M8 5v14l11-7z',
+  pause:  'M6 19h4V5H6v14zm8-14v14h4V5h-4z',
+  volOn:  'M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z',
+  volOff: 'M16.5 12A4.5 4.5 0 0 0 14 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z',
+  fsIn:   'M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z',
+  fsOut:  'M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z'
+};
+
+let autoHide = true;
+
+function fmt(s) {
+  if (!isFinite(s)) return '0:00';
+  const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2,'0')}`;
+}
+
+let hideTimer;
+function showUI() {
+  controls.classList.add('visible');
+  titleBar.classList.add('visible');
+  container.classList.add('show-cursor');
+  clearTimeout(hideTimer);
+  if (autoHide) {
+    hideTimer = setTimeout(() => { if (!vid.paused) hideUI(); }, 3000);
+  }
+}
+function hideUI() {
+  controls.classList.remove('visible');
+  titleBar.classList.remove('visible');
+  container.classList.remove('show-cursor');
+}
+container.addEventListener('mousemove', showUI);
+container.addEventListener('mouseenter', showUI);
+controls.addEventListener('mouseenter', () => clearTimeout(hideTimer));
+controls.addEventListener('mouseleave', () => {
+  if (!vid.paused && autoHide) hideTimer = setTimeout(hideUI, 1200);
+});
+
+function togglePlay() {
+  if (vid.paused) { vid.play(); flash('pause'); }
+  else            { vid.pause(); flash('play'); }
+}
+playBtn.addEventListener('click', togglePlay);
+vid.addEventListener('click', e => { if (e.target === vid) togglePlay(); });
+vid.addEventListener('play',  () => { playIco.setAttribute('d', D.pause); showUI(); });
+vid.addEventListener('pause', () => { playIco.setAttribute('d', D.play);  showUI(); });
+vid.addEventListener('ended', () =>   playIco.setAttribute('d', D.play));
+
+function flash(type) {
+  bigSvg.setAttribute('d', D[type]);
+  bigIcon.classList.remove('flash', 'fade');
+  void bigIcon.offsetWidth;
+  bigIcon.classList.add('flash');
+  clearTimeout(bigIcon._t);
+  bigIcon._t = setTimeout(() => { bigIcon.classList.remove('flash'); bigIcon.classList.add('fade'); }, 500);
+}
+
+function updateSeek() {
+  const pct = vid.duration ? (vid.currentTime / vid.duration) * 100 : 0;
+  seekFill.style.width = pct + '%';
+  seekThumb.style.left = pct + '%';
+  seekBar.value = vid.currentTime;
+  timeDisp.textContent = `${fmt(vid.currentTime)} / ${fmt(vid.duration)}`;
+}
+vid.addEventListener('loadedmetadata', () => {
+  seekBar.max = vid.duration;
+  timeDisp.textContent = `0:00 / ${fmt(vid.duration)}`;
+});
+vid.addEventListener('timeupdate', updateSeek);
+seekBar.addEventListener('input', () => { vid.currentTime = parseFloat(seekBar.value); });
+
+let skipAccum = 0, skipResetTimer = null, hintTimer = null;
+function skip(s) {
+  vid.currentTime = Math.max(0, Math.min(vid.duration || 0, vid.currentTime + s));
+  if ((s > 0 && skipAccum < 0) || (s < 0 && skipAccum > 0)) skipAccum = 0;
+  skipAccum += s;
+  showHint(skipAccum > 0 ? `+${skipAccum}s` : `${skipAccum}s`);
+  clearTimeout(skipResetTimer);
+  skipResetTimer = setTimeout(() => { skipAccum = 0; }, 1200);
+}
+backBtn.addEventListener('click', () => skip(-10));
+fwdBtn.addEventListener('click',  () => skip(+10));
+
+function updateVolVisual(v) {
+  const pct = (v * 100).toFixed(2) + '%';
+  volFill.style.width = pct;
+  volThumb.style.left = pct;
+}
+volSlider.addEventListener('input', () => {
+  const v = parseFloat(volSlider.value);
+  vid.volume = v; vid.muted = v === 0;
+  updateVolVisual(v);
+  volIco.setAttribute('d', vid.muted ? D.volOff : D.volOn);
+});
+muteBtn.addEventListener('click', () => {
+  vid.muted = !vid.muted;
+  const v = vid.muted ? 0 : vid.volume;
+  volSlider.value = v;
+  updateVolVisual(v);
+  volIco.setAttribute('d', vid.muted ? D.volOff : D.volOn);
+  showHint(vid.muted ? 'Muted' : 'Unmuted');
+});
+updateVolVisual(1);
+
+function toggleFS() {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+  else document.exitFullscreen?.();
+}
+fsBtn.addEventListener('click', toggleFS);
+document.addEventListener('fullscreenchange', () => {
+  const fs = !!document.fullscreenElement;
+  fsIco.setAttribute('d', fs ? D.fsOut : D.fsIn);
+  fsExitLabel.textContent = fs ? 'Exit fullscreen' : 'Enter fullscreen';
+});
+
+function showHint(msg) {
+  hintInner.textContent = msg;
+  hintInner.classList.add('show');
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => hintInner.classList.remove('show'), 950);
+}
+
+document.addEventListener('keydown', e => {
+  if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+  switch(e.key) {
+    case ' ': case 'k': case 'K': e.preventDefault(); togglePlay(); break;
+    case 'ArrowRight': e.preventDefault(); skip(+10); break;
+    case 'ArrowLeft':  e.preventDefault(); skip(-10); break;
+    case 'ArrowUp':
+      e.preventDefault();
+      vid.volume = Math.min(1, parseFloat((vid.volume + 0.1).toFixed(2)));
+      volSlider.value = vid.volume; updateVolVisual(vid.volume);
+      showHint(`Vol ${Math.round(vid.volume * 100)}%`); break;
+    case 'ArrowDown':
+      e.preventDefault();
+      vid.volume = Math.max(0, parseFloat((vid.volume - 0.1).toFixed(2)));
+      volSlider.value = vid.volume; updateVolVisual(vid.volume);
+      showHint(`Vol ${Math.round(vid.volume * 100)}%`); break;
+    case 'm': case 'M': muteBtn.click(); break;
+    case 'f': case 'F': toggleFS(); break;
+  }
+  showUI();
+});
+
+vid.addEventListener('error', () => { errMsg.style.display = 'block'; });
+
+const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
+let currentSpeed = 1;
+SPEEDS.forEach(s => {
+  const btn = document.createElement('button');
+  btn.className = 'speed-btn' + (s === 1 ? ' active' : '');
+  btn.textContent = s === 1 ? '1 (Default)' : s;
+  btn.addEventListener('click', () => {
+    vid.playbackRate = s;
+    currentSpeed = s;
+    speedBtns.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    showHint(s);
+    closeCtx();
+  });
+  speedBtns.appendChild(btn);
+});
+
+loopToggle.addEventListener('click', () => {
+  vid.loop = !vid.loop;
+  loopToggle.classList.toggle('on', vid.loop);
+});
+
+autoHideToggle.addEventListener('click', () => {
+  autoHide = !autoHide;
+  autoHideToggle.classList.toggle('on', autoHide);
+  if (!autoHide) { clearTimeout(hideTimer); showUI(); }
+});
+
+pipToggle.addEventListener('click', async () => {
+  try {
+    if (document.pictureInPictureElement) {
+      await document.exitPictureInPicture();
+      pipToggle.classList.remove('on');
+    } else {
+      await vid.requestPictureInPicture();
+      pipToggle.classList.add('on');
+    }
+  } catch(e) {}
+  closeCtx();
+});
+vid.addEventListener('leavepictureinpicture', () => pipToggle.classList.remove('on'));
+
+restartBtn.addEventListener('click', () => {
+  vid.currentTime = 0;
+  if (vid.paused) vid.play();
+  closeCtx();
+  showHint('Restarted');
+});
+
+copyTimeBtn.addEventListener('click', () => {
+  const t = fmt(vid.currentTime);
+  navigator.clipboard?.writeText(t).catch(() => {});
+  closeCtx();
+  showHint('Copied ' + t);
+});
+
+fsExitBtn.addEventListener('click', () => { toggleFS(); closeCtx(); });
+
+function openCtx(x, y) {
+  ctxMenu.classList.add('open');
+  void ctxMenu.offsetWidth;
+  const mw = ctxMenu.offsetWidth, mh = ctxMenu.offsetHeight;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  ctxMenu.style.left = Math.min(x, vw - mw - 8) + 'px';
+  ctxMenu.style.top  = Math.min(y, vh - mh - 8) + 'px';
+  ctxMenu.classList.add('visible');
+}
+function closeCtx() {
+  ctxMenu.classList.remove('visible');
+  setTimeout(() => ctxMenu.classList.remove('open'), 180);
+}
+
+container.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  openCtx(e.clientX, e.clientY);
+  showUI();
+});
+document.addEventListener('click', e => {
+  if (!ctxMenu.contains(e.target)) closeCtx();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeCtx();
+});
+</script>
+</body>
+</html>
