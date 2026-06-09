@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Video Player</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0f0f0f;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+      color: #fff;
+    }
+
+    h1 {
+      margin-bottom: 16px;
+      font-size: 1.4rem;
+      font-weight: 400;
+      letter-spacing: 0.05em;
+      color: #ccc;
+    }
+
+    .player-wrapper {
+      width: 100%;
+      max-width: 900px;
+      background: #1a1a1a;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+    }
+
+    video {
+      width: 100%;
+      display: block;
+      background: #000;
+      max-height: 506px;
+      cursor: pointer;
+    }
+
+    .controls {
+      padding: 12px 16px 16px;
+      background: #1a1a1a;
+    }
+
+    /* Progress bar */
+    .progress-container {
+      position: relative;
+      height: 6px;
+      background: #333;
+      border-radius: 3px;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+    .progress-container:hover { height: 8px; }
+    .progress-bar {
+      height: 100%;
+      background: #e05c5c;
+      border-radius: 3px;
+      width: 0%;
+      pointer-events: none;
+      transition: width 0.1s linear;
+    }
+    .progress-container input[type=range] {
+      position: absolute;
+      top: 50%; left: 0;
+      transform: translateY(-50%);
+      width: 100%; height: 100%;
+      opacity: 0;
+      cursor: pointer;
+      margin: 0;
+    }
+
+    .bottom-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    button {
+      background: none;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s;
+    }
+    button:hover { background: rgba(255,255,255,0.1); }
+
+    button svg { width: 20px; height: 20px; fill: currentColor; }
+
+    .skip-btn { font-size: 0.78rem; font-weight: 600; color: #ccc; }
+
+    .time-display {
+      font-size: 0.82rem;
+      color: #aaa;
+      white-space: nowrap;
+      margin-left: auto;
+    }
+
+    /* Volume */
+    .volume-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .volume-slider {
+      -webkit-appearance: none;
+      width: 80px;
+      height: 4px;
+      background: #555;
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      background: #e05c5c;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    /* Fullscreen */
+    .fullscreen-btn { margin-left: 4px; }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .volume-slider { width: 55px; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>My Video Player</h1>
+
+<div class="player-wrapper">
+  <!-- 🎬 Change "video.mp4" to your actual filename -->
+  <video id="vid" src="video.mp4" preload="metadata"></video>
+
+  <div class="controls">
+    <!-- Progress / Seek Bar -->
+    <div class="progress-container" id="progressContainer">
+      <div class="progress-bar" id="progressBar"></div>
+      <input type="range" id="seekBar" value="0" min="0" step="0.1"/>
+    </div>
+
+    <div class="bottom-controls">
+      <!-- Play/Pause -->
+      <button id="playBtn" title="Play/Pause">
+        <svg id="playIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+
+      <!-- Skip back 10s -->
+      <button class="skip-btn" id="skipBack" title="Back 10s">
+        <svg viewBox="0 0 24 24"><path d="M12 5V2L7 7l5 5V9c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+        −10s
+      </button>
+
+      <!-- Skip forward 10s -->
+      <button class="skip-btn" id="skipFwd" title="Forward 10s">
+        +10s
+        <svg viewBox="0 0 24 24"><path d="M12 5V2l5 5-5 5V9c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z"/></svg>
+      </button>
+
+      <!-- Volume -->
+      <div class="volume-wrapper">
+        <button id="muteBtn" title="Mute/Unmute">
+          <svg id="volIcon" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+        </button>
+        <input type="range" id="volumeBar" class="volume-slider" min="0" max="1" step="0.05" value="1"/>
+      </div>
+
+      <!-- Timestamp -->
+      <div class="time-display" id="timeDisplay">0:00 / 0:00</div>
+
+      <!-- Fullscreen -->
+      <button class="fullscreen-btn" id="fullscreenBtn" title="Fullscreen">
+        <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const vid = document.getElementById('vid');
+  const playBtn = document.getElementById('playBtn');
+  const playIcon = document.getElementById('playIcon');
+  const seekBar = document.getElementById('seekBar');
+  const progressBar = document.getElementById('progressBar');
+  const skipBack = document.getElementById('skipBack');
+  const skipFwd = document.getElementById('skipFwd');
+  const volumeBar = document.getElementById('volumeBar');
+  const muteBtn = document.getElementById('muteBtn');
+  const volIcon = document.getElementById('volIcon');
+  const timeDisplay = document.getElementById('timeDisplay');
+  const fullscreenBtn = document.getElementById('fullscreenBtn');
+  const playerWrapper = document.querySelector('.player-wrapper');
+
+  const PLAY_ICON  = 'M8 5v14l11-7z';
+  const PAUSE_ICON = 'M6 19h4V5H6v14zm8-14v14h4V5h-4z';
+  const VOL_ON  = 'M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z';
+  const VOL_OFF = 'M16.5 12A4.5 4.5 0 0 0 14 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z';
+
+  function fmt(s) {
+    const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2,'0')}`;
+  }
+
+  // Play / Pause
+  function togglePlay() {
+    vid.paused ? vid.play() : vid.pause();
+  }
+  playBtn.addEventListener('click', togglePlay);
+  vid.addEventListener('click', togglePlay);
+
+  vid.addEventListener('play',  () => playIcon.setAttribute('d', PAUSE_ICON));
+  vid.addEventListener('pause', () => playIcon.setAttribute('d', PLAY_ICON));
+  vid.addEventListener('ended', () => playIcon.setAttribute('d', PLAY_ICON));
+
+  // Seek bar
+  vid.addEventListener('loadedmetadata', () => {
+    seekBar.max = vid.duration;
+    timeDisplay.textContent = `0:00 / ${fmt(vid.duration)}`;
+  });
+
+  vid.addEventListener('timeupdate', () => {
+    const pct = (vid.currentTime / vid.duration) * 100;
+    seekBar.value = vid.currentTime;
+    progressBar.style.width = pct + '%';
+    timeDisplay.textContent = `${fmt(vid.currentTime)} / ${fmt(vid.duration)}`;
+  });
+
+  seekBar.addEventListener('input', () => { vid.currentTime = seekBar.value; });
+
+  // Skip
+  skipBack.addEventListener('click', () => { vid.currentTime = Math.max(0, vid.currentTime - 10); });
+  skipFwd.addEventListener('click',  () => { vid.currentTime = Math.min(vid.duration, vid.currentTime + 10); });
+
+  // Volume
+  volumeBar.addEventListener('input', () => {
+    vid.volume = volumeBar.value;
+    vid.muted = vid.volume === 0;
+    volIcon.setAttribute('d', vid.muted ? VOL_OFF : VOL_ON);
+  });
+
+  muteBtn.addEventListener('click', () => {
+    vid.muted = !vid.muted;
+    volumeBar.value = vid.muted ? 0 : vid.volume;
+    volIcon.setAttribute('d', vid.muted ? VOL_OFF : VOL_ON);
+  });
+
+  // Fullscreen
+  fullscreenBtn.addEventListener('click', () => {
+    if (!document.fullscreenElement) playerWrapper.requestFullscreen();
+    else document.exitFullscreen();
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', e => {
+    if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+    if (e.key === ' ' || e.key === 'k') { e.preventDefault(); togglePlay(); }
+    if (e.key === 'ArrowRight') vid.currentTime = Math.min(vid.duration, vid.currentTime + 10);
+    if (e.key === 'ArrowLeft')  vid.currentTime = Math.max(0, vid.currentTime - 10);
+    if (e.key === 'm') muteBtn.click();
+    if (e.key === 'f') fullscreenBtn.click();
+  });
+</script>
+</body>
+</html>
