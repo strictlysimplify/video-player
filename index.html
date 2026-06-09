@@ -721,13 +721,13 @@ let currentSpeed = 1;
 SPEEDS.forEach(s => {
   const btn = document.createElement('button');
   btn.className = 'speed-btn' + (s === 1 ? ' active' : '');
-  btn.textContent = s === 1 ? '1× (normal)' : s + '×';
+  btn.textContent = s === 1 ? '1 (Default)' : s;
   btn.addEventListener('click', () => {
     vid.playbackRate = s;
     currentSpeed = s;
     speedBtns.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    showHint(s + '×');
+    showHint(s);
     closeCtx();
   });
   speedBtns.appendChild(btn);
